@@ -1,0 +1,88 @@
+/* Minimal Quill Snow theme subset for local use */
+.ql-editor {
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  min-height: 200px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ql-editor:focus {
+  outline: none;
+  border-color: #3e78f0;
+}
+
+/* Simple toolbar mimic (not a full Quill toolbar) */
+.ql-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  background: #f8f9fa;
+  margin-bottom: 8px;
+  align-items: center;
+  overflow-x: auto;
+}
+.ql-toolbar .ql-formats {
+  display: flex;
+  gap: 6px;
+}
+.ql-toolbar .ql-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #495057;
+}
+.ql-toolbar .ql-btn:hover {
+  background: #e9ecef;
+}
+.ql-toolbar .ql-btn svg {
+  display: block;
+}
+.ql-toolbar .ql-btn .iconfont {
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+  font-size: 18px;
+  line-height: 28px;
+}
+.ql-toolbar .ql-btn .icon-text {
+  display: inline-block;
+  width: 100%;
+  text-align: center;
+  font-weight: 600;
+}
+.ql-toolbar .ql-btn .color-A {
+  position: relative;
+}
+.ql-toolbar .ql-btn .color-A::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 3px;
+  height: 2px;
+  background: #1971c2;
+}
+.ql-toolbar .ql-btn .bg-A {
+  background: linear-gradient(transparent 60%, #fff3bf 60%);
+}
+.ql-toolbar .ql-select {
+  height: 28px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  background: white;
+  color: #343a40;
+  padding: 0 6px;
+}
+.ql-color-input {
+  position: absolute;
+  left: -9999px;
+}
