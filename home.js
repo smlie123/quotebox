@@ -543,6 +543,25 @@ class OptionsManager {
       exportModalEl.addEventListener('click', (e) => {
         if (e.target.id === 'exportModal') this.closeExportModal();
       });
+      
+      const historyBtn = document.getElementById('viewExportHistoryBtn');
+      if (historyBtn) {
+        historyBtn.addEventListener('click', () => {
+          this.closeExportModal();
+          this.showExportHistory();
+        });
+      }
+    }
+
+    // Export History Modal Events
+    const historyModal = document.getElementById('exportHistoryModal');
+    if (historyModal) {
+      document.getElementById('closeExportHistoryModal').addEventListener('click', () => {
+        historyModal.classList.add('hidden');
+      });
+      historyModal.addEventListener('click', (e) => {
+        if (e.target.id === 'exportHistoryModal') historyModal.classList.add('hidden');
+      });
     }
 
     // 导入弹窗事件
@@ -757,9 +776,7 @@ class OptionsManager {
               this.commentCounts = {};
             }
 
-            this.filteredArticles = [...this.articles];
-            this.sortArticles();
-            this.renderArticles();
+            this.filterArticlesByCategory();
           } else {
             this.showError('Failed to load data: ' + articlesResponse.error);
           }
@@ -768,9 +785,7 @@ class OptionsManager {
           const articlesResponse = await chrome.runtime.sendMessage({ action: 'getAllArticles' });
           if (articlesResponse.success) {
             this.articles = articlesResponse.data;
-            this.filteredArticles = [...this.articles];
-            this.sortArticles();
-            this.renderArticles();
+            this.filterArticlesByCategory();
           }
         }
       } else {
@@ -816,9 +831,7 @@ class OptionsManager {
             3: 1
           };
         }
-        this.filteredArticles = [...this.articles];
-        this.sortArticles();
-        this.renderArticles();
+        this.filterArticlesByCategory();
       }
     } catch (error) {
       this.showError("Couldn’t load data. Please try again.");
@@ -1721,7 +1734,64 @@ class OptionsManager {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
+    // Save export history
+    this.saveExportHistory(blob.size, this.articles.length);
+
     this.showToast('Exported successfully (categories and articles included).');
+  }
+
+  saveExportHistory(size, count) {
+    const history = this.getExportHistory();
+    history.unshift({
+      time: Date.now(),
+      size: size,
+      count: count
+    });
+    // Keep last 20 records
+    if (history.length > 20) history.pop();
+    localStorage.setItem('quotebox_export_history', JSON.stringify(history));
+  }
+
+  getExportHistory() {
+    try {
+      return JSON.parse(localStorage.getItem('quotebox_export_history') || '[]');
+    } catch (e) {
+      return [];
+    }
+  }
+
+  showExportHistory() {
+    const history = this.getExportHistory();
+    const container = document.getElementById('exportHistoryList');
+    const modal = document.getElementById('exportHistoryModal');
+    
+    if (!container || !modal) return;
+    
+    if (history.length === 0) {
+      container.innerHTML = '<div class="history-empty">No export history found.</div>';
+    } else {
+      let html = '<table class="history-table"><thead><tr><th>Time</th><th>Size</th><th>Articles</th></tr></thead><tbody>';
+      history.forEach(item => {
+        html += `<tr>
+          <td>${new Date(item.time).toLocaleString()}</td>
+          <td>${this.formatBytes(item.size)}</td>
+          <td>${item.count}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+    
+    modal.classList.remove('hidden');
+  }
+
+  formatBytes(bytes, decimals = 2) {
+    if (!+bytes) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
   }
 
   // 显示/关闭导出弹窗

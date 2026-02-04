@@ -27,7 +27,6 @@
   overflow-x: auto;
 }
 .ql-toolbar .ql-formats {
-  display: flex;
   gap: 6px;
 }
 .ql-toolbar .ql-btn {

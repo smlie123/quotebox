@@ -1,24 +1,18 @@
 {
   "manifest_version": 3,
-  "name": "QuoteBox",
-  "version": "1.0.0",
-  "description": "a Chrome extension that helps you quickly capture and organize meaningful content while browsing the web.",
+  "name": "QuoteBox – Save Text & Images from Web Pages Instantly",
+  "version": "1.1.0",
+  "description": "QuoteBox helps you save meaningful text and images from web pages instantly — without interrupting your reading.",
   "permissions": [
     "contextMenus",
-    "storage",
     "unlimitedStorage",
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
 
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["content.js"]
-    }
-  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "QuoteBox",

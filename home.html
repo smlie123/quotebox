@@ -472,8 +472,29 @@
         <p>Export all your data (categories and articles) to a <code>.json</code> file.</p>
         <p>To restore: go to Settings → Import Data, then select the exported file.</p>
         <div class="modal-actions">
+          <button id="viewExportHistoryBtn" class="btn-link">History</button>
           <button id="confirmExportBtn" class="btn btn-primary">Export</button>
           <button id="cancelExportBtn" class="btn">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export History Modal -->
+  <div id="exportHistoryModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Export History</h3>
+        <button id="closeExportHistoryModal" class="close-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="exportHistoryList">
+          <!-- History table will be generated here -->
         </div>
       </div>
     </div>

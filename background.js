@@ -489,6 +489,16 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     // 优先处理图片
     if (info.mediaType === 'image' && info.srcUrl) {
       try {
+        // 首先注入content script
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js']
+          });
+        } catch (injectionError) {
+          // 注入失败可能因为权限或页面受限，继续尝试后续步骤
+        }
+
         // 保存为图片标签（使用原始图片 URL，不转换为 base64）
         const imageTag = `<img src="${info.srcUrl}" alt="" style="max-width: 100%; height: auto;" />`;
         
@@ -527,6 +537,16 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     // 处理文本
     else if (info.selectionText) {
       try {
+        // 首先注入content script
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js']
+          });
+        } catch (injectionError) {
+          // 注入失败可能因为权限或页面受限，继续尝试后续步骤
+        }
+
         let contentToSave = info.selectionText; // 默认使用纯文本
         let contentType = 'Plain Text';
         
@@ -565,19 +585,19 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           // Ignore
         }
 
-        // 尝试通知用户保存成功
+        // 通知用户保存成功
         try {
+          // 再次注入确保脚本存在(如果页面刷新的话)，实际上sendMessage会失败如果脚本不在
+          // 但这里我们假设脚本还在，直接发送通知
           await chrome.tabs.sendMessage(tab.id, {
             action: 'showNotification',
             message: 'Saved to QuoteBox.'
           });
-        } catch (notificationError) {
-          // 可以考虑使用chrome.notifications API作为备选
-        }
+        } catch (notificationError) {}
       } catch (error) {
         
         
-        // 尝试通知用户保存失败
+        // 通知用户保存失败
         try {
           await chrome.tabs.sendMessage(tab.id, {
             action: 'showNotification',
@@ -683,10 +703,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         case 'openHomePage':
           // Singleton pattern: open or focus home.html
           const homeUrl = chrome.runtime.getURL('home.html');
-          chrome.tabs.query({}, (tabs) => {
-            // Use startsWith to handle potential query parameters or hashes
-            const existingTab = tabs.find(tab => tab.url && tab.url.startsWith(homeUrl));
-            if (existingTab) {
+          
+          // 使用 url 匹配模式查找已打开的 home.html 标签页
+          // 加上 * 通配符以匹配可能存在的查询参数
+          chrome.tabs.query({ url: homeUrl + '*' }, (tabs) => {
+            if (tabs.length > 0) {
+              const existingTab = tabs[0];
               chrome.tabs.update(existingTab.id, { active: true });
               chrome.windows.update(existingTab.windowId, { focused: true });
             } else {
