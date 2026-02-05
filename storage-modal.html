@@ -1,0 +1,46 @@
+<!-- Storage Status Modal -->
+  <div id="storageModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Storage Status</h3>
+        <button id="closeStorageModal" class="close-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="storage-content">
+          <div class="storage-chart-container">
+            <div id="storagePieChart" class="pie-chart"></div>
+            <div class="chart-legend">
+              <div class="legend-item">
+                <span class="color-dot used"></span>
+                <span class="label">Used</span>
+                <span class="value" id="storageUsedValue">--</span>
+              </div>
+              <div class="legend-item">
+                <span class="color-dot free"></span>
+                <span class="label">Free</span>
+                <span class="value" id="storageFreeValue">--</span>
+              </div>
+            </div>
+          </div>
+          <div class="storage-info">
+             <div class="info-row">
+              <span class="info-label">Total Allocated:</span>
+              <span class="info-value" id="storageTotalValue">--</span>
+            </div>
+             <div class="info-row">
+              <span class="info-label">Usage Percentage:</span>
+              <span class="info-value" id="storagePercentValue">--</span>
+            </div>
+            <p class="storage-note">
+              The total storage is the space allocated by the system to Chrome.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

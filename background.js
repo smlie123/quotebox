@@ -507,8 +507,25 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           // 注入失败可能因为权限或页面受限，继续尝试后续步骤
         }
 
-        // 保存为图片标签（使用原始图片 URL，不转换为 base64）
-        const imageTag = `<img src="${info.srcUrl}" alt="" style="max-width: 100%; height: auto;" />`;
+        // 尝试通过 content script 获取图片数据（支持防盗链、CORS等）
+        let imageSrc = info.srcUrl;
+        let captureMethod = 'direct-url';
+        
+        try {
+            const response = await chrome.tabs.sendMessage(tab.id, {
+                action: 'captureImage',
+                srcUrl: info.srcUrl
+            });
+            if (response && response.success && response.data && response.data.dataUrl) {
+                imageSrc = response.data.dataUrl;
+                captureMethod = response.data.method || 'unknown';
+            }
+        } catch (e) {
+            console.warn('Image capture via content script failed:', e);
+        }
+
+        // 保存为图片标签
+        const imageTag = `<img src="${imageSrc}" alt="" style="max-width: 100%; height: auto;" data-capture-method="${captureMethod}" />`;
         
         // 内容与标题均设置为图片标签，便于在列表和弹窗中展示图片缩略图
         await quoteBoxDB.saveArticle(imageTag, tab.url, undefined, imageTag);
@@ -530,8 +547,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           });
         } catch (notificationError) {}
       } catch (error) {
-        
-        
         // 通知用户保存失败
         try {
           await chrome.tabs.sendMessage(tab.id, {
@@ -565,8 +580,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             action: 'getSelectedHTML'
           });
 
-          
-          
+          // 如果content script明确返回了错误（例如内容过大），则抛出特定错误
+          if (response && response.error) {
+             throw new Error('CONTENT_SCRIPT_ERROR:' + response.error);
+          }
+
           if (response && response.html) {
             contentToSave = response.html;
             contentType = 'HTML';
@@ -574,12 +592,15 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           const rawText = (response && response.innerText) ? response.innerText : (info.selectionText || '');
           titleText = rawText.replace(/\s+/g, ' ').trim().slice(0, 50);
         } catch (contentScriptError) {
-          // 继续使用纯文本保存，不抛出错误
+          // 如果是Content Script返回的已知错误，则中止保存，并且不显示通用错误（因为Content Script已经显示了）
+          if (contentScriptError.message && contentScriptError.message.startsWith('CONTENT_SCRIPT_ERROR:')) {
+             return; // 停止执行
+          }
+
+          // 其他错误（如通信失败），继续使用纯文本保存，不抛出错误
           const rawText = info.selectionText || '';
           titleText = rawText.replace(/\s+/g, ' ').trim().slice(0, 50);
         }
-        
-        
         
         // 保存选中的内容到数据库（包含标题）
         await quoteBoxDB.saveArticle(contentToSave, tab.url, undefined, titleText);
@@ -603,8 +624,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
           });
         } catch (notificationError) {}
       } catch (error) {
-        
-        
         // 通知用户保存失败
         try {
           await chrome.tabs.sendMessage(tab.id, {
@@ -708,6 +727,78 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ success: true, counts: counts });
           break;
           
+        case 'captureVisibleTab':
+          try {
+            const dataUrl = await new Promise((resolve, reject) => {
+              try {
+                chrome.tabs.captureVisibleTab(sender.tab ? sender.tab.windowId : undefined, { format: 'png' }, (img) => {
+                  const err = chrome.runtime.lastError;
+                  if (err) reject(err);
+                  else resolve(img);
+                });
+              } catch (e) {
+                reject(e);
+              }
+            });
+            sendResponse({ success: true, dataUrl });
+          } catch (e) {
+            sendResponse({ success: false, error: e.toString() });
+          }
+          break;
+        
+        case 'captureAndCrop':
+          try {
+            const { rect, dpr } = request;
+            const fullDataUrl = await new Promise((resolve, reject) => {
+              try {
+                chrome.tabs.captureVisibleTab(sender.tab ? sender.tab.windowId : undefined, { format: 'png' }, (img) => {
+                  const err = chrome.runtime.lastError;
+                  if (err) reject(err);
+                  else resolve(img);
+                });
+              } catch (e) {
+                reject(e);
+              }
+            });
+            const blob = await (await fetch(fullDataUrl)).blob();
+            const bitmap = await createImageBitmap(blob);
+            const sx = Math.round(rect.left * dpr);
+            const sy = Math.round(rect.top * dpr);
+            const sWidth = Math.round(rect.width * dpr);
+            const sHeight = Math.round(rect.height * dpr);
+            const canvas = new OffscreenCanvas(sWidth, sHeight);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(bitmap, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+            const outBlob = await canvas.convertToBlob({ type: 'image/png' });
+            const dataUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(outBlob);
+            });
+            sendResponse({ success: true, dataUrl });
+          } catch (e) {
+            sendResponse({ success: false, error: e.toString() });
+          }
+          break;
+          
+        case 'fetchImageBlob':
+          try {
+            const response = await fetch(request.url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const blob = await response.blob();
+            const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+            sendResponse({ success: true, dataUrl });
+          } catch (e) {
+            sendResponse({ success: false, error: e.toString() });
+          }
+          break;
+
         case 'openHomePage':
           // Singleton pattern: open or focus home.html
           const homeUrl = chrome.runtime.getURL('home.html');

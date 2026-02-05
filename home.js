@@ -498,10 +498,27 @@ class OptionsManager {
       this.showImportModal();
       this.hideSettingsMenu();
     });
+    document.getElementById('storageStatusBtn').addEventListener('click', () => {
+      this.showStorageStats();
+      this.hideSettingsMenu();
+    });
     document.getElementById('aboutBtn').addEventListener('click', () => {
       this.showAbout();
       this.hideSettingsMenu();
     });
+
+    // Storage Status Modal Events
+    const storageModal = document.getElementById('storageModal');
+    if (storageModal) {
+      document.getElementById('closeStorageModal').addEventListener('click', () => {
+        this.closeStorageModal();
+      });
+      storageModal.addEventListener('click', (e) => {
+        if (e.target.id === 'storageModal') {
+          this.closeStorageModal();
+        }
+      });
+    }
     // 联系我们
     const contactBtn = document.getElementById('contactBtn');
     if (contactBtn) {
@@ -1131,6 +1148,15 @@ class OptionsManager {
     this.updateBatchButtonsState();
   }
 
+  getArticleSize(article) {
+    try {
+      // Estimate size based on JSON string length
+      return JSON.stringify(article).length;
+    } catch (e) {
+      return 0;
+    }
+  }
+
   renderCardView(container, append = false) {
     // 修复：当append=true时，只渲染新加载的文章
     const articlesToRender = append ? this.displayedArticles.slice(-this.pageSize) : this.displayedArticles;
@@ -1138,6 +1164,8 @@ class OptionsManager {
       const plainText = this.getPlainText(article.content);
       const firstImage = this.getFirstImage(article.content);
       const commentCount = this.commentCounts[article.id] || this.commentCounts[String(article.id)] || 0;
+      const size = this.getArticleSize(article);
+      const isLarge = size > 1024 * 1024; // 1MB
       
       let cardContentHtml = '';
       if (firstImage) {
@@ -1172,6 +1200,15 @@ class OptionsManager {
               <i class="iconfont icon-link"></i>
             </a>
           </div>
+          ${isLarge ? `
+          <div class="card-storage-warning" title="Large storage usage (>1MB). May contain large files.">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+            </svg>
+          </div>
+          ` : ''}
           ${commentCount > 0 ? `<div class="card-comment-info" style="display: flex; align-items: center; color: #6c757d; font-size: 12px; margin-right: auto;">
             <i class="iconfont icon-comment" style="font-size: 14px; margin-right: 2px;"></i>${commentCount}
           </div>` : '<div style="margin-right: auto;"></div>'}
@@ -1969,6 +2006,9 @@ class OptionsManager {
       const article = this.articles.find(a => a.id === this.currentArticleId);
       if (titleInput && article) {
         titleInput.value = article.title || '';
+        // Show title input container
+        const titleGroup = titleInput.closest('.form-group-title') || document.querySelector('.form-group-title');
+        // if (titleGroup) titleGroup.classList.remove('hidden');
       }
       if (categorySelect) {
         // 渲染分类选项
@@ -2048,6 +2088,14 @@ class OptionsManager {
     if (!editorContainer || !contentDisplay) return;
     editorContainer.classList.add('hidden');
     contentDisplay.classList.remove('hidden');
+    
+    // Hide title input container
+    const titleInput = document.getElementById('editArticleTitle');
+    if (titleInput) {
+      const titleGroup = titleInput.closest('.form-group-title') || document.querySelector('.form-group-title');
+      if (titleGroup) titleGroup.classList.add('hidden');
+    }
+
     document.getElementById('editContentBtn').classList.remove('hidden');
     document.getElementById('saveEditBtn').classList.add('hidden');
     document.getElementById('cancelEditBtn').classList.add('hidden');
@@ -2182,10 +2230,11 @@ class OptionsManager {
       date: article.create_at || new Date().toISOString()
     };
     
-    localStorage.setItem('pdfPreviewData', JSON.stringify(previewData));
+    // Pass ID via URL instead of localStorage to avoid quota limits
+    // localStorage.setItem('pdfPreviewData', JSON.stringify(previewData));
     
-    // Open preview page in new tab
-    window.open('pdf-preview.html', '_blank');
+    // Open preview page in new tab with article ID
+    window.open(`pdf-preview.html?id=${this.currentArticleId}`, '_blank');
   }
 
   exportImage() {
@@ -2201,10 +2250,11 @@ class OptionsManager {
       date: article.create_at || new Date().toISOString()
     };
     
-    localStorage.setItem('imagePreviewData', JSON.stringify(previewData));
+    // Pass ID via URL instead of localStorage to avoid quota limits
+    // localStorage.setItem('imagePreviewData', JSON.stringify(previewData));
     
-    // Open preview page in new tab
-    window.open('image-preview.html', '_blank');
+    // Open preview page in new tab with article ID
+    window.open(`image-preview.html?id=${this.currentArticleId}`, '_blank');
   }
 
   async copyModalHtml() {
@@ -3424,6 +3474,69 @@ class OptionsManager {
       }
     } catch (err) {
       this.showToast('Failed to post comment.', 'error');
+    }
+  }
+
+  async showStorageStats() {
+    const modal = document.getElementById('storageModal');
+    if (!modal) return;
+    
+    modal.classList.remove('hidden');
+    
+    // Reset UI to loading state to indicate real-time calculation
+    document.getElementById('storageUsedValue').textContent = 'Calculating...';
+    document.getElementById('storageTotalValue').textContent = '--';
+    document.getElementById('storagePercentValue').textContent = '--';
+    document.getElementById('storageFreeValue').textContent = '--';
+    
+    const chart = document.getElementById('storagePieChart');
+    if (chart) {
+      chart.style.background = '#e9ecef'; // Reset to gray
+    }
+    
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        const estimate = await navigator.storage.estimate();
+        const used = estimate.usage || 0;
+        const quota = estimate.quota || 0;
+        const percent = quota > 0 ? (used / quota * 100) : 0;
+        
+        const formatBytes = (bytes, decimals = 2) => {
+          if (bytes === 0) return '0 Bytes';
+          const k = 1024;
+          const dm = decimals < 0 ? 0 : decimals;
+          const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
+          return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        };
+        
+        document.getElementById('storageUsedValue').textContent = formatBytes(used);
+        document.getElementById('storageTotalValue').textContent = formatBytes(quota);
+        document.getElementById('storagePercentValue').textContent = percent.toFixed(4) + '%';
+        document.getElementById('storageFreeValue').textContent = formatBytes(quota - used);
+        
+        // Update Pie Chart
+        const chart = document.getElementById('storagePieChart');
+        if (chart) {
+          // Used is blue (#3e78f0), Free is light gray (#e9ecef)
+          const displayPercent = (used > 0 && percent < 1) ? 1 : percent;
+          chart.style.background = `conic-gradient(#3e78f0 0% ${displayPercent}%, #e9ecef ${displayPercent}% 100%)`;
+        }
+      } else {
+         // Fallback if API not available
+        document.getElementById('storageUsedValue').textContent = 'N/A';
+        document.getElementById('storageTotalValue').textContent = 'N/A';
+      }
+    } catch (err) {
+      console.error('Storage estimate failed:', err);
+      document.getElementById('storageUsedValue').textContent = 'Error';
+    }
+  }
+
+  closeStorageModal() {
+    const modal = document.getElementById('storageModal');
+    if (modal) {
+      modal.classList.add('hidden');
     }
   }
 }
