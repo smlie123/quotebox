@@ -470,6 +470,14 @@ class QuoteBoxDB {
 
 const quoteBoxDB = new QuoteBoxDB();
 
+let homeTabId = null;
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (tabId === homeTabId) {
+    homeTabId = null;
+  }
+});
+
 // 插件安装时初始化
 chrome.runtime.onInstalled.addListener(async () => {
   // 初始化数据库
@@ -704,17 +712,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           // Singleton pattern: open or focus home.html
           const homeUrl = chrome.runtime.getURL('home.html');
           
-          // 使用 url 匹配模式查找已打开的 home.html 标签页
-          // 加上 * 通配符以匹配可能存在的查询参数
-          chrome.tabs.query({ url: homeUrl + '*' }, (tabs) => {
+          if (homeTabId) {
+            try {
+              // Check if tab really exists
+              const tab = await chrome.tabs.get(homeTabId);
+              await chrome.tabs.update(homeTabId, { active: true });
+              await chrome.windows.update(tab.windowId, { focused: true });
+              await chrome.tabs.reload(homeTabId);
+            } catch (e) {
+              // Tab doesn't exist anymore
+              homeTabId = null;
+            }
+          }
+          
+          if (!homeTabId) {
+            // Check if it's already open but we lost the ID (e.g. SW restart)
+            // 加上 * 通配符以匹配可能存在的查询参数
+            const tabs = await chrome.tabs.query({ url: homeUrl + '*' });
             if (tabs.length > 0) {
               const existingTab = tabs[0];
-              chrome.tabs.update(existingTab.id, { active: true });
-              chrome.windows.update(existingTab.windowId, { focused: true });
+              homeTabId = existingTab.id;
+              await chrome.tabs.update(homeTabId, { active: true });
+              await chrome.windows.update(existingTab.windowId, { focused: true });
+              await chrome.tabs.reload(homeTabId);
             } else {
-              chrome.tabs.create({ url: homeUrl });
+              const tab = await chrome.tabs.create({ url: homeUrl });
+              homeTabId = tab.id;
             }
-          });
+          }
           sendResponse({ success: true });
           break;
 

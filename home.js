@@ -406,6 +406,14 @@ class OptionsManager {
     });
 
     // 工具栏按钮
+    document.getElementById('exportImageBtn').addEventListener('click', () => {
+      this.exportImage();
+    });
+
+    document.getElementById('exportPdfBtn').addEventListener('click', () => {
+      this.exportPdf();
+    });
+
     document.getElementById('copyContentBtn').addEventListener('click', () => {
       this.copyModalText();
     });
@@ -2159,6 +2167,44 @@ class OptionsManager {
     }
     // 预览/非扩展环境下，直接返回成功
     return true;
+  }
+
+  exportPdf() {
+    if (!this.currentArticleId) return;
+    
+    const article = this.articles.find(a => a.id === this.currentArticleId);
+    if (!article) return;
+    
+    const previewData = {
+      title: article.title || 'Untitled',
+      content: this.normalizeContentLinks(article.content),
+      source: article.from || 'Unknown Source',
+      date: article.create_at || new Date().toISOString()
+    };
+    
+    localStorage.setItem('pdfPreviewData', JSON.stringify(previewData));
+    
+    // Open preview page in new tab
+    window.open('pdf-preview.html', '_blank');
+  }
+
+  exportImage() {
+    if (!this.currentArticleId) return;
+    
+    const article = this.articles.find(a => a.id === this.currentArticleId);
+    if (!article) return;
+    
+    const previewData = {
+      title: article.title || 'Untitled',
+      content: this.normalizeContentLinks(article.content),
+      source: article.from || 'Unknown Source',
+      date: article.create_at || new Date().toISOString()
+    };
+    
+    localStorage.setItem('imagePreviewData', JSON.stringify(previewData));
+    
+    // Open preview page in new tab
+    window.open('image-preview.html', '_blank');
   }
 
   async copyModalHtml() {
