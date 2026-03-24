@@ -502,7 +502,7 @@ class OptionsManager {
       this.showStorageStats();
       this.hideSettingsMenu();
     });
-    document.getElementById('aboutBtn').addEventListener('click', () => {
+    document.getElementById('aboutContactBtn').addEventListener('click', () => {
       this.showAbout();
       this.hideSettingsMenu();
     });
@@ -519,26 +519,11 @@ class OptionsManager {
         }
       });
     }
-    // 联系我们
-    const contactBtn = document.getElementById('contactBtn');
-    if (contactBtn) {
-      contactBtn.addEventListener('click', () => {
-        this.showContact();
-        this.hideSettingsMenu();
-      });
-    }
 
     // 关于我们和联系我们弹窗关闭按钮
     document.getElementById('closeAboutModal').addEventListener('click', () => {
       this.closeAboutModal();
     });
-    // 关闭联系我们
-    const closeContactBtn = document.getElementById('closeContactModal');
-    if (closeContactBtn) {
-      closeContactBtn.addEventListener('click', () => {
-        this.closeContactModal();
-      });
-    }
 
     // 点击背景关闭弹窗
     document.getElementById('aboutModal').addEventListener('click', (e) => {
@@ -546,14 +531,6 @@ class OptionsManager {
         this.closeAboutModal();
       }
     });
-    const contactModal = document.getElementById('contactModal');
-    if (contactModal) {
-      contactModal.addEventListener('click', (e) => {
-        if (e.target.id === 'contactModal') {
-          this.closeContactModal();
-        }
-      });
-    }
     // 联系我们弹窗已移除
 
     // 导出弹窗事件
@@ -2629,7 +2606,9 @@ class OptionsManager {
   renderManageCategories() {
     const container = document.getElementById('manageCategoryList');
     
-    container.innerHTML = this.categories.map(category => `
+    container.innerHTML = this.categories.map(category => {
+      const isDefault = category.name.toLowerCase() === 'default';
+      return `
       <div class="manage-category-item" data-id="${category.id}" draggable="true">
         <div class="drag-handle">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2643,12 +2622,12 @@ class OptionsManager {
           <button class="btn-edit" data-id="${category.id}" data-name="${this.escapeHtml(category.name)}">
             <i class="iconfont icon-edit-square"></i>
           </button>
-          <button class="btn-delete" data-id="${category.id}">
+          <button class="btn-delete" data-id="${category.id}" ${isDefault ? 'disabled style="opacity: 0.3; cursor: not-allowed;" title="Cannot delete default category"' : ''}>
             <i class="iconfont icon-delete"></i>
           </button>
         </div>
       </div>
-    `).join('');
+    `}).join('');
     
     // 绑定编辑和删除按钮事件
     container.querySelectorAll('.btn-edit').forEach(btn => {
@@ -2661,6 +2640,7 @@ class OptionsManager {
     });
     
     container.querySelectorAll('.btn-delete').forEach(btn => {
+      if (btn.hasAttribute('disabled')) return; // Skip disabled buttons
       btn.addEventListener('click', (e) => {
         const targetBtn = e.currentTarget;
         const id = parseInt(targetBtn.dataset.id);
@@ -2831,17 +2811,6 @@ class OptionsManager {
   closeAboutModal() {
     const aboutModal = document.getElementById('aboutModal');
     aboutModal.classList.add('hidden');
-  }
-
-  // 联系我们
-  showContact() {
-    const contactModal = document.getElementById('contactModal');
-    contactModal.classList.remove('hidden');
-  }
-
-  closeContactModal() {
-    const contactModal = document.getElementById('contactModal');
-    contactModal.classList.add('hidden');
   }
 
   // 分类选择弹窗相关方法
